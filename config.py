@@ -5,7 +5,7 @@ CONFIG_FILE = os.path.join(os.path.dirname(__file__), "data", "config.json")
 
 DEFAULT_CONFIG = {
     "api_key": "",
-    "model": "gemini-2.0-flash",
+    "model": "gemini-flash-latest",
     "language": "es",
     "project_key": "",
 }

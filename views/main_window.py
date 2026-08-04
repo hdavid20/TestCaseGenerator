@@ -3,10 +3,11 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 import json
 import os
+import sys
 import threading
 
 from config import load_config, save_config, get_api_key
-from utils.ai_helper import generate_test_cases
+from utils.ai_helper import generate_test_cases, generate_exhaustive_test_cases
 from utils.jira_export import generate_jira_csv, generate_xray_csv, sanitize_filename
 
 ctk.set_appearance_mode("dark")
@@ -30,6 +31,8 @@ class TestCaseCard(ctk.CTkFrame):
         self.grid_columnconfigure(2, weight=1)
 
         header = f"#{test_case.get('id', '')}  {test_case.get('resumen', '')}"
+        if test_case.get("tipo"):
+            header += f"  ·  ({test_case.get('tipo', '')})"
         lbl_id = ctk.CTkLabel(self, text=header,
                               font=(FONT_FAMILY, 12, "bold"), text_color=ACCENT, anchor="w")
         lbl_id.grid(row=0, column=0, padx=(10, 5), pady=(8, 0), sticky="w")
@@ -39,7 +42,8 @@ class TestCaseCard(ctk.CTkFrame):
                                 font=(FONT_FAMILY, 11), text_color="#6bcb77", anchor="w")
         lbl_tipo.grid(row=0, column=1, padx=(0, 5), pady=(8, 0), sticky="w")
 
-        lbl_desc = ctk.CTkLabel(self, text=test_case.get("descripcion", ""),
+        main_text = test_case.get("escenario") or test_case.get("descripcion", "")
+        lbl_desc = ctk.CTkLabel(self, text=main_text,
                                 font=(FONT_FAMILY, FONT_SIZE), text_color=TEXT_COLOR,
                                 anchor="w", wraplength=400, justify="left")
         lbl_desc.grid(row=0, column=2, padx=(5, 10), pady=(8, 0), sticky="ew")
@@ -82,7 +86,12 @@ class TestCaseCard(ctk.CTkFrame):
         self._detail_frame.grid_columnconfigure(0, weight=1)
 
         tc = self.test_case
-        fields = [
+        fields = []
+        if tc.get("escenario"):
+            fields.append(("Escenario", tc.get("escenario", "")))
+        if tc.get("tipo"):
+            fields.append(("Tipo", tc.get("tipo", "")))
+        fields += [
             ("Acción", tc.get("accion", "")),
             ("Datos de Prueba", tc.get("datos_prueba", "")),
             ("Resultado Esperado", tc.get("resultado_esperado", "")),
@@ -120,7 +129,7 @@ class EditTestCaseDialog(ctk.CTkToplevel):
     def __init__(self, parent, test_case, on_save):
         super().__init__(parent)
         self.title("Editar Caso de Prueba")
-        self.geometry("650x550")
+        self.geometry("680x640")
         self.transient(parent)
         self.grab_set()
 
@@ -134,6 +143,8 @@ class EditTestCaseDialog(ctk.CTkToplevel):
             ("ID", "id", "entry"),
             ("Resumen", "resumen", "entry"),
             ("Descripcion", "descripcion", "text"),
+            ("Escenario", "escenario", "entry"),
+            ("Tipo", "tipo", "entry"),
             ("Acción", "accion", "text"),
             ("Datos de Prueba", "datos_prueba", "text"),
             ("Resultado Esperado", "resultado_esperado", "text"),
@@ -151,7 +162,8 @@ class EditTestCaseDialog(ctk.CTkToplevel):
                 widget = ctk.CTkTextbox(self, height=55 if key == "descripcion" else 50,
                                         font=(FONT_FAMILY, 12), fg_color=BG_CARD)
                 widget.insert("0.0", test_case.get(key, ""))
-                widget.grid(row=i, column=1, padx=10, pady=5, sticky="ew")
+                sticky = "nsew" if i == len(fields) - 1 else "ew"
+                widget.grid(row=i, column=1, padx=10, pady=5, sticky=sticky)
             self._entries[key] = widget
 
         row_offset = len(fields)
@@ -187,7 +199,7 @@ class EditTestCaseDialog(ctk.CTkToplevel):
                 return w.get("0.0", "end").strip()
             return w.get().strip()
 
-        for key in ["id", "resumen", "descripcion", "accion", "datos_prueba", "resultado_esperado"]:
+        for key in ["id", "resumen", "descripcion", "escenario", "tipo", "accion", "datos_prueba", "resultado_esperado"]:
             self._test_case[key] = get_text(key)
         self._test_case["tipo_test"] = self._tipo_var.get()
         self._test_case["directorio"] = self._dir_entry.get().strip()
@@ -300,6 +312,8 @@ class App(ctk.CTk):
         self.geometry("1200x750")
         self.minsize(900, 600)
 
+        self._set_window_icon()
+
         self._config = load_config()
         self._test_cases = []
         self._cards = []
@@ -307,6 +321,21 @@ class App(ctk.CTk):
         self._build_ui()
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+    def _resource_path(self, relative):
+        if getattr(sys, "frozen", False):
+            return os.path.join(os.path.dirname(sys.executable), relative)
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", relative)
+
+    def _set_window_icon(self):
+        for name in ("GenCP.ico", "icon.ico"):
+            icon_path = self._resource_path(os.path.join("assets", name))
+            if os.path.exists(icon_path):
+                try:
+                    self.iconbitmap(icon_path)
+                except tk.TclError:
+                    pass
+                break
 
     def _build_ui(self):
         self.grid_columnconfigure(0, weight=1)
@@ -354,9 +383,13 @@ class App(ctk.CTk):
                                        fg_color="#0d1b2a", placeholder_text="Ej: HU-123")
         self._hu_entry.grid(row=2, column=0, padx=10, pady=(0, 5), sticky="ew")
 
-        ctk.CTkLabel(left, text="Criterios de Aceptación (uno por línea)",
-                     font=(FONT_FAMILY, 11), text_color=TEXT_COLOR).grid(
-            row=3, column=0, padx=10, pady=(5, 2), sticky="w")
+        label_row = ctk.CTkFrame(left, fg_color="transparent")
+        label_row.grid(row=3, column=0, padx=10, pady=(5, 2), sticky="ew")
+        ctk.CTkLabel(label_row, text="Criterios de Aceptación",
+                     font=(FONT_FAMILY, 11), text_color=TEXT_COLOR).pack(side="left")
+        ctk.CTkButton(label_row, text="📄 Cargar .docx", font=(FONT_FAMILY, 10),
+                       fg_color=FG_PRIMARY, hover_color="#1a5276", height=22,
+                       command=self._load_docx).pack(side="right")
         self._story_text = ctk.CTkTextbox(left, font=(FONT_FAMILY, FONT_SIZE),
                                            fg_color="#0d1b2a", wrap="word")
         self._story_text.grid(row=4, column=0, padx=10, pady=(0, 10), sticky="nsew")
@@ -365,7 +398,13 @@ class App(ctk.CTk):
             left, text="🚀 Generar Casos de Prueba", font=(FONT_FAMILY, 15, "bold"),
             fg_color=ACCENT, text_color="#000", height=42,
             hover_color="#3db88b", command=self._generate)
-        self._generate_btn.grid(row=5, column=0, padx=10, pady=(5, 10), sticky="ew")
+        self._generate_btn.grid(row=5, column=0, padx=10, pady=(5, 5), sticky="ew")
+
+        self._generate_exhaustive_btn = ctk.CTkButton(
+            left, text="🎯 Generar Todos los Escenarios", font=(FONT_FAMILY, 13, "bold"),
+            fg_color=FG_PRIMARY, text_color=ACCENT, height=36,
+            hover_color="#1a5276", command=self._generate_exhaustive)
+        self._generate_exhaustive_btn.grid(row=6, column=0, padx=10, pady=(0, 10), sticky="ew")
 
     def _build_results_panel(self, parent):
         right = ctk.CTkFrame(parent, fg_color=BG_CARD, corner_radius=10)
@@ -426,7 +465,77 @@ class App(ctk.CTk):
 
         self._results_count.configure(text=f"Casos generados: {len(self._test_cases)}")
 
+    def _load_docx(self):
+        filepath = filedialog.askopenfilename(
+            title="Seleccionar documento",
+            filetypes=[
+                ("Documentos", "*.docx *.pdf"),
+                ("Word", "*.docx"),
+                ("PDF", "*.pdf"),
+                ("Todos los archivos", "*.*"),
+            ],
+        )
+        if not filepath:
+            return
+        try:
+            ext = os.path.splitext(filepath)[1].lower()
+            if ext == ".pdf":
+                import fitz
+                doc = fitz.open(filepath)
+                text = "\n".join(page.get_text() for page in doc)
+                doc.close()
+            elif ext == ".docx":
+                from docx import Document
+                doc = Document(filepath)
+
+                def _docx_blocks(element):
+                    blocks = []
+                    for p in element.paragraphs:
+                        if p.text.strip():
+                            blocks.append(p.text.strip())
+                    for table in element.tables:
+                        for row in table.rows:
+                            cells = []
+                            for cell in row.cells:
+                                cell_text = _docx_blocks(cell)
+                                cells.append(" | ".join(cell_text))
+                            blocks.append(" ".join(c for c in cells if c))
+                    return blocks
+
+                text = "\n".join(_docx_blocks(doc))
+                if not text.strip():
+                    for section in doc.sections:
+                        for block in _docx_blocks(section.header) + _docx_blocks(section.footer):
+                            if block:
+                                text += block + "\n"
+            else:
+                messagebox.showerror("Formato no soportado",
+                                     "Solo se aceptan archivos .docx y .pdf")
+                return
+            self._story_text.delete("0.0", "end")
+            self._story_text.insert("0.0", text.strip())
+            if not text.strip():
+                self._set_status(f"⚠️ Sin texto extraíble: {os.path.basename(filepath)}")
+                messagebox.showwarning(
+                    "Documento sin texto",
+                    "No se pudo extraer texto del archivo. Puede ser un documento "
+                    "escaneado (imagen) o sin texto seleccionable.",
+                )
+            else:
+                self._set_status(f"📄 Cargado: {os.path.basename(filepath)}")
+        except ImportError as e:
+            pkg = "python-docx" if "docx" in str(e) else "PyMuPDF"
+            messagebox.showerror("Falta dependencia", f"Instalá {pkg}: pip install {pkg}")
+        except Exception as e:
+            messagebox.showerror("Error al leer archivo", str(e))
+
     def _generate(self):
+        self._run_generation(exhaustive=False)
+
+    def _generate_exhaustive(self):
+        self._run_generation(exhaustive=True)
+
+    def _run_generation(self, exhaustive=False):
         story = self._story_text.get("0.0", "end").strip()
         hu_code = self._hu_entry.get().strip()
 
@@ -436,32 +545,48 @@ class App(ctk.CTk):
             return
 
         self._generate_btn.configure(state="disabled", text="⏳ Generando...")
-        self._set_status("Generando casos de prueba con Gemini...")
+        self._generate_exhaustive_btn.configure(state="disabled", text="⏳ Generando...")
+
+        mode_label = "todos los escenarios" if exhaustive else "casos de prueba"
+        self._set_status(f"Generando {mode_label} con Gemini...")
 
         def task():
             try:
                 api_key = get_api_key()
-                cases = generate_test_cases(
+                generator = generate_exhaustive_test_cases if exhaustive else generate_test_cases
+                cases = generator(
                     api_key, story,
                     model=self._config.get("model", "gemini-2.0-flash"),
                     hu_code=hu_code,
                 )
-                self.after(0, self._on_generated, cases)
+                self.after(0, self._on_generated, cases, exhaustive)
             except Exception as e:
                 err_msg = f"{type(e).__name__}: {e}"
                 self.after(0, self._on_error, err_msg)
 
         threading.Thread(target=task, daemon=True).start()
 
-    def _on_generated(self, cases):
-        self._test_cases = cases[:50]
+    def _on_generated(self, cases, exhaustive=False):
+        max_cases = 500 if exhaustive else 50
+        truncated = len(cases) > max_cases
+        self._test_cases = cases[:max_cases]
         self._render_cards()
         self._generate_btn.configure(state="normal", text="🚀 Generar Casos de Prueba")
-        self._set_status(f"✅ {len(cases)} casos generados")
-        messagebox.showinfo("Completado", f"Se generaron {len(cases)} casos de prueba.")
+        self._generate_exhaustive_btn.configure(state="normal", text="🎯 Generar Todos los Escenarios")
+        if truncated:
+            self._set_status(f"⚠️ {len(cases)} casos generados, mostrando los primeros {max_cases}")
+            messagebox.showwarning(
+                "Atención",
+                f"Gemini generó {len(cases)} casos, pero solo se muestran y exportan "
+                f"los primeros {max_cases}. Generá de nuevo para obtener el resto.",
+            )
+        else:
+            self._set_status(f"✅ {len(cases)} casos generados")
+            messagebox.showinfo("Completado", f"Se generaron {len(cases)} casos de prueba.")
 
     def _on_error(self, error):
         self._generate_btn.configure(state="normal", text="🚀 Generar Casos de Prueba")
+        self._generate_exhaustive_btn.configure(state="normal", text="🎯 Generar Todos los Escenarios")
         self._set_status("❌ Error")
         messagebox.showerror("Error", error)
 

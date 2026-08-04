@@ -1,79 +1,57 @@
 [
   {
+    "id": ":---",
+    "resumen": ":---",
+    "descripcion": ":---",
+    "criterio": ":---",
+    "accion": ":---",
+    "datos_prueba": ":---",
+    "resultado_esperado": ":---",
+    "tipo_test": ":---",
+    "directorio": ":---"
+  },
+  {
     "id": "1",
-    "resumen": "C5",
-    "descripcion": "Validar que, si el usuario ya se ha logueado en la aplicación móvil, se le permita al conductor ingresar así no cuente con conexión a internet.",
-    "criterio": "C5",
-    "accion": "Intentar ingresar a la aplicación móvil sin conexión a internet habiéndose autenticado previamente en el dispositivo como conductor.",
-    "datos_prueba": "Estado de red: Sin conexión (Modo avión/Offline), Usuario previamente autenticado: conductor_test.",
-    "resultado_esperado": "La aplicación permite el acceso del conductor de manera exitosa en modo offline.",
+    "resumen": "C1",
+    "descripcion": "Cuando se genere un error en la aplicación se debe poder encontrar el registro correspondiente en el log (físico, base de datos o el que considere el equipo de desarrollo) de la aplicación",
+    "criterio": "C1",
+    "accion": "Provocar una condición de error dentro de la aplicación y consultar el archivo de log o base de datos configurado para el registro de eventos.",
+    "datos_prueba": "Error forzado (ej. parámetro inválido en petición), Timestamp de la prueba, Usuario: qa_tester.",
+    "resultado_esperado": "El registro del error generado se visualiza correctamente en el log de la aplicación detallando la información del evento.",
     "tipo_test": "Manual",
-    "directorio": "hu app"
+    "directorio": "HU001"
   },
   {
     "id": "2",
-    "resumen": "C6",
-    "descripcion": "Comprobar que, cuando no se tengan datos del conductor que se está intentando loguear, se muestren las alertas indicadas.",
-    "criterio": "C6",
-    "accion": "Intentar iniciar sesión en la aplicación móvil ingresando credenciales de un conductor que no se encuentra registrado en el sistema.",
-    "datos_prueba": "Usuario: conductor_inexistente@test.com, Contraseña: Password123!.",
-    "resultado_esperado": "Se muestran en pantalla las alertas correspondientes indicando que no se tienen datos del conductor ingresado.",
+    "resumen": "C2",
+    "descripcion": "Cuando se genere un error en la aplicación se debe poder encontrar el registro correspondiente en el log (físico, base de datos o el que considere el equipo de desarrollo) de la aplicación.",
+    "criterio": "C2",
+    "accion": "Generar una excepción o fallo controlado en la interfaz del sistema y verificar la persistencia inmediata del evento en el medio de almacenamiento de logs establecido.",
+    "datos_prueba": "Excepción controlada (ej. timeout de conexión o error 500), ID de transacción, Fecha y hora actual.",
+    "resultado_esperado": "El log de la aplicación contiene la traza y detalles del error que corresponde exactamente al evento generado.",
     "tipo_test": "Manual",
-    "directorio": "hu app"
+    "directorio": "HU001"
   },
   {
     "id": "3",
-    "resumen": "C7",
-    "descripcion": "Verificar que, se guarde la información que se ingresa en la app de manera local, esto con el objetivo que una vez se detecte internet se cargue en el servidor. Este proceso se hará en todos los procesos de la aplicación de acuerdo con lo indicado en el detalle de la historia.",
-    "criterio": "C7",
-    "accion": "Ingresar información en los diferentes procesos de la aplicación sin conexión a internet y posteriormente restablecer la conectividad para verificar su carga.",
-    "datos_prueba": "Datos ingresados en formularios de la app, Estado de red: Offline y cambio posterior a Online.",
-    "resultado_esperado": "La información se guarda de manera local en el dispositivo y se carga automáticamente en el servidor una vez se detecta conexión a internet.",
+    "resumen": "C3",
+    "descripcion": "Autorización para acceder a una opción del sistema. Que corresponde a: Iniciar sesión y validar que el sistema presente solo las opciones que tienen configuradas los roles del usuario autenticado.",
+    "criterio": "C3",
+    "accion": "Iniciar sesión en la aplicación con un usuario registrado y verificar que el menú del sistema presente exclusivamente las opciones asignadas a sus roles.",
+    "datos_prueba": "Usuario: operador_qa, Contraseña: Password123!, Rol asignado: Operador (Opciones permitidas: Inicio, Consultas).",
+    "resultado_esperado": "El sistema despliega única y exclusivamente las opciones que corresponden a los roles asignados al usuario autenticado.",
     "tipo_test": "Manual",
-    "directorio": "hu app"
+    "directorio": "HU001"
   },
   {
     "id": "4",
-    "resumen": "C8",
-    "descripcion": "Validar que, se pueda descargar el PDF con todos los servicios del día, esto en caso de que no se cuente con conexión a internet.",
-    "criterio": "C8",
-    "accion": "Solicitar la descarga del documento PDF con la información de todos los servicios del día sin disponer de conexión a internet.",
-    "datos_prueba": "Estado de red: Sin conexión, Registro de servicios del día almacenados en la app.",
-    "resultado_esperado": "El archivo PDF con la totalidad de los servicios del día se descarga correctamente en el dispositivo.",
+    "resumen": "C4",
+    "descripcion": "Forzar autorización para acceder a una opción del sistema. Que corresponde a: Iniciar sesión, ingresar la URL de una opción del sistema que no pertenezca a los roles que tiene el usuario autenticado, presionar enter, el sistema debe redireccionar la petición al formulario por defecto.",
+    "criterio": "C4",
+    "accion": "Iniciar sesión con un usuario restringido e intentar ingresar directamente mediante la barra de direcciones del navegador a una URL que no pertenece a sus roles permitidos.",
+    "datos_prueba": "Usuario: operador_qa, Contraseña: Password123!, URL no permitida: https://sistema.com/admin/configuracion.",
+    "resultado_esperado": "El sistema bloquea la navegación directa no autorizada y redirecciona la petición automáticamente al formulario por defecto.",
     "tipo_test": "Manual",
-    "directorio": "hu app"
-  },
-  {
-    "id": "5",
-    "resumen": "C9",
-    "descripcion": "Comprobar que, el comprobante y la tirilla se generen independiente a la conexión a internet, tener en cuenta que están irán sin consecutivo hasta que se carguen al servidor.",
-    "criterio": "C9",
-    "accion": "Generar un comprobante y una tirilla en la aplicación tanto sin conexión como con conexión a internet para validar la asignación de consecutivos.",
-    "datos_prueba": "Transacción realizada sin conexión, Conexión a internet restablecida posterior a la generación.",
-    "resultado_esperado": "El comprobante y la tirilla se generan sin número consecutivo de manera offline y se les asigna su consecutivo correspondiente una vez que se cargan al servidor.",
-    "tipo_test": "Manual",
-    "directorio": "hu app"
-  },
-  {
-    "id": "6",
-    "resumen": "C10",
-    "descripcion": "Verificar que se muestren los mensajes de alerta de sincronización según sea el caso.",
-    "criterio": "C10",
-    "accion": "Ejecutar acciones que requieran sincronización de datos bajo distintas condiciones de conectividad para verificar los avisos en pantalla.",
-    "datos_prueba": "Eventos de sincronización (sincronización exitosa, pendiente o con errores), Estados de red: Online/Offline.",
-    "resultado_esperado": "Se muestran los mensajes de alerta de sincronización acordes al estado de cada proceso.",
-    "tipo_test": "Manual",
-    "directorio": "hu app"
-  },
-  {
-    "id": "7",
-    "resumen": "C11",
-    "descripcion": "Comprobar que, el registro del kilometraje se realice al reporte al finalizar la ruta, esto de acuerdo con lo indicado en el detalle de la historia.",
-    "criterio": "C11",
-    "accion": "Registrar la lectura del kilometraje actual en la aplicación al momento de dar por terminada la ruta asignada.",
-    "datos_prueba": "Kilometraje de cierre: 12540 km, Estado de la ruta: Finalizada.",
-    "resultado_esperado": "El kilometraje registrado se incluye correctamente en el reporte generado al finalizar la ruta de acuerdo con lo indicado en el detalle de la historia.",
-    "tipo_test": "Manual",
-    "directorio": "hu app"
+    "directorio": "HU001"
   }
 ]

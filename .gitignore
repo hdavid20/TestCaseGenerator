@@ -1,0 +1,16 @@
+# Secrets y datos locales
+data/config.json
+data/autosave_test_cases.json
+
+# Entorno y build
+venv/
+.venv/
+dist/
+build/
+*.spec
+__pycache__/
+*.pyc
+
+# Sistema
+.DS_Store
+Thumbs.db
